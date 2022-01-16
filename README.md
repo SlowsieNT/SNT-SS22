@@ -1,5 +1,5 @@
 # Project: SNT-SS22
-## About
+This is free and unencumbered software released into the public domain.
 ### SlowsieNT-SilverSpark*22*
 *"Http Silver Spark is supposed to be the cutest, and tiny spark; Allows many customizations!"*<br>
 
