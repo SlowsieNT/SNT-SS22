@@ -15,7 +15,7 @@ namespace SNTSS22
             var vSpark = new HttpSilverSpark("localhost", 81) {
                 Body = "msg#05=#1a",
                 Method = "POST",
-                ReceiveDataLength = 1133
+                ReceiveDataLength = 111
             };
             vSpark.Headers.Add("Content-Type: application/x-www-form-urlencoded");
             vSpark.OnSent += VSpark_OnSent;
