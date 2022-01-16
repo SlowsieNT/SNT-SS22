@@ -1,8 +1,15 @@
-# SNT-SS22
+# Project: SNT-SS22
+## About
+### SlowsieNT-SilverSpark*22*
+*"Http Silver Spark is supposed to be the cutest, and tiny spark; Allows many customizations!"*<br>
 
+## Notes
+If possible (NOT required): include credits, thank you!
+
+## Requirements
 .NET 3.5+
 
-Example code:<br>
+## Example:
 ```cs
 HttpSilverSpark.Load("useragents.txt");
   var vSpark = new HttpSilverSpark("localhost", 81) {
