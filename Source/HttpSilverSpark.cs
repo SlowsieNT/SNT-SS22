@@ -9,12 +9,12 @@ using System.Threading;
 
 namespace SNTSS22 {
     
-    public delegate void HttpSilverSparkException(Exception aException);
     public delegate void HttpSilverSparkReceiveHandler(object aSender, byte[] aBytes, HttpSilverSparkHandle aHSSH);
     public delegate void HttpSilverSparkSentHandler(object aSender, int aValue, HttpSilverSparkHandle aHSSH);
-    public delegate void HttpSilverSparkException2(object aSender, Exception aException);
+    public delegate void HttpSilverSparkErrorHandler(object aSender, HttpSilverSparkHandle aHSSH, Exception aException);
+    public delegate void HttpSilverSparkLoadErrorHandler(Exception aException);
     public class HttpSilverSparkHandle {
-        public TcpClient Socket;
+        public TcpClient Socket = new TcpClient();
         public NetworkStream Stream;
         public string SentData = "";
         public HttpSilverSparkHandle() { }
@@ -79,9 +79,9 @@ namespace SNTSS22 {
         /// <summary>NOTE: Called as background thread.</summary>
         public event HttpSilverSparkSentHandler OnSent;
         /// <summary>NOTE: Called as background thread.</summary>
-        public event HttpSilverSparkException2 OnError;
-        /// <summary>NOTE: Called synchronously.</summary>
-        public static event HttpSilverSparkException OnLoadError;
+        public event HttpSilverSparkErrorHandler OnError;
+        /// <summary>NOTE: Called as background thread.</summary>
+        public static event HttpSilverSparkLoadErrorHandler OnLoadError;
         // All other is below
         /// <summary>
         /// Load string separated by lines.
@@ -99,7 +99,9 @@ namespace SNTSS22 {
                 if (File.Exists(aFileName))
                     m_UserAgents.AddRange(File.ReadAllLines(aFileName));
             } catch (Exception vEx) {
-                OnLoadError?.Invoke(vEx);
+                ThreadPool.QueueUserWorkItem(delegate (object aState) {
+                    OnLoadError?.Invoke(vEx);
+                });
             }
         }
         string GetHVGoogleSearchReferer(string aHost) {
@@ -120,16 +122,15 @@ namespace SNTSS22 {
             return RHelper.Choice(m_UserAgents);
         }
         HttpSilverSparkHandle GetConnectionStream() {
-            var vSocket = new TcpClient();
-            NetworkStream vNS = default;
             try {
-                vSocket.Connect(Host, Port);
-                vNS = vSocket.GetStream();
-            } catch (Exception vEx) { OnError?.Invoke(this, vEx); }
-            return new HttpSilverSparkHandle() {
-                Socket = vSocket,
-                Stream = vNS
-            };
+                var vHSSH = new HttpSilverSparkHandle();
+                vHSSH.Socket.Connect(Host, Port);
+                vHSSH.Stream = vHSSH.Socket.GetStream();
+                return vHSSH;
+            } catch (Exception vEx) {
+                InvokeOnError(default, vEx);
+                return default;
+            }
         }
         /// <summary>
         /// If port not 443 nor 80, yields:
@@ -166,7 +167,7 @@ namespace SNTSS22 {
                 // Return true if success
                 return vBytes.Length;
             } catch (Exception vEx){
-                OnError?.Invoke(this, vEx);
+                InvokeOnError(vHSSH, vEx);
             }
             // Apply delay if set
             if (UseHeaderDelay && !aIgnoreDelay) Thread.Sleep(GetHDelay());
@@ -240,8 +241,6 @@ namespace SNTSS22 {
             vList2.Add(string.Format(vMainMT, vSpace, "0." + m_R.Next(5, 9)));
             return string.Join("," + vSpace, vList2.ToArray());
         }
-        
-        
         string GetRandomHVForwarded() {
             var vIP = RHelper.GetIP();
             var vBy = RHelper.Roll(3) ? ";by=" + RHelper.GetIP() : "";
@@ -259,7 +258,6 @@ namespace SNTSS22 {
             if (default != vCS) {
                 string vUA = GetUserAgent();
                 int vSent = 0;
-
                 // This represents first line of http packet
                 vSent += SendLine(vCS, GetMainHeader(), null, RHelper.Roll(m_R.Next(2, 3)));
                 // This is host header
@@ -335,6 +333,11 @@ namespace SNTSS22 {
                 OnReceive?.Invoke(this, vBuf, aHSSH);
             });
         }
+        void InvokeOnError(HttpSilverSparkHandle aHSSH, Exception aException) {
+            ThreadPool.QueueUserWorkItem(delegate (object aState) {
+                OnError?.Invoke(this, aHSSH, aException);
+            });
+        }
         void InvokeOnSent(int vSent, HttpSilverSparkHandle aHSSH) {
             ThreadPool.QueueUserWorkItem(delegate (object aState) {
                 OnSent?.Invoke(this, vSent, aHSSH);
@@ -401,8 +404,6 @@ namespace SNTSS22 {
         /// Http Silver Spark is supposed to be the cutest, and tiny spark.
         /// <br>As it allows many customizations!</br>
         /// </summary>
-        public HttpSilverSpark() {
-            
-        }
+        public HttpSilverSpark() { }
     }
 }
